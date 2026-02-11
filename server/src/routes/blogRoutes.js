@@ -1,19 +1,16 @@
 import express from 'express'
 import { 
-  addBlog, 
   addComment, 
   deleteBlogById, 
-  generateContent, 
   getAllBlogs, 
   getBlogById, 
   getBlogComments, 
   publishBlog,
   unpublishBlog 
 } from '../controllers/blogController.js'
-import upload from '../middleware/multer.js'
 import auth from '../middleware/auth.js'
-import { commentLimiter, generateLimiter } from '../middleware/rateLimiter.js'
-import { validateComment, validateBlogInput } from '../validators/blogValidator.js'
+import { commentLimiter } from '../middleware/rateLimiter.js'
+import { validateComment } from '../validators/blogValidator.js'
 
 const blogRouter = express.Router()
 
@@ -27,10 +24,8 @@ blogRouter.post('/comments', getBlogComments)
 blogRouter.use(auth)
 
 // Protected routes
-blogRouter.post('/add', upload.single('image'), validateBlogInput, addBlog)
 blogRouter.post('/delete', deleteBlogById)
 blogRouter.post('/publish', publishBlog)
 blogRouter.post('/unpublish', unpublishBlog)
-blogRouter.post('/generate', generateLimiter, generateContent)
 
 export default blogRouter
