@@ -31,11 +31,18 @@ const deleteImageFile = (imagePath) => {
 }
 
 export const addBlog = asyncHandler(async (req, res) => {
-  const { title, subTitle, description, category, isPublished } = JSON.parse(req.body.blog)
+  let blogData = {}
+  try {
+    blogData = req.body.blog ? JSON.parse(req.body.blog) : {}
+  } catch {
+    return res.status(400).json({ success: false, message: 'Invalid blog payload' })
+  }
+
+  const { title, subTitle, description, category, isPublished } = blogData
   const imageFile = req.file
 
   // Check if all fields are present
-  if (!title || !description || !category || !imageFile) {
+  if (!title || !subTitle || !description || !category || !imageFile) {
     return res.status(400).json({ success: false, message: 'Missing required fields' })
   }
 
@@ -140,6 +147,38 @@ export const generateContent = asyncHandler(async (req, res) => {
   if (!prompt || !prompt.trim()) {
     return res.status(400).json({ success: false, message: 'Prompt is required' })
   }
-  const content = await main(prompt + ' Generate a blog content for this topic in simple text format')
-  res.json({ success: true, content })
+
+  const trimmedPrompt = prompt.trim()
+  if (trimmedPrompt.length > 180) {
+    return res.status(400).json({ success: false, message: 'Prompt is too long' })
+  }
+
+  const generationPrompt = `
+Generate a blog article body in valid HTML for this title/topic: "${trimmedPrompt}".
+
+Rules:
+- Return HTML only (no markdown, no backticks, no explanation).
+- Use semantic tags suitable for a blog body: <h2>, <p>, <ul>, <li>, <strong>.
+- Do not include <html>, <head>, <body>, <script>, or inline styles.
+- Keep it concise and practical.
+`.trim()
+
+  try {
+    const rawContent = await main(generationPrompt)
+    const content = rawContent.replace(/```html|```/g, '').trim().slice(0, 12000)
+    return res.json({ success: true, content })
+  } catch (error) {
+    if (error.message === 'GEMINI_API_KEY is not configured') {
+      return res.status(500).json({
+        success: false,
+        message: 'Content generation is not configured on server'
+      })
+    }
+
+    console.error('AI generation failed:', error.message)
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to generate content. Please try again.'
+    })
+  }
 })
